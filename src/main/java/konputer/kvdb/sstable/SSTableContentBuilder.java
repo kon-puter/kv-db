@@ -1,0 +1,63 @@
+package konputer.kvdb.sstable;
+
+import java.io.*;
+import java.util.TreeMap;
+
+
+public class SSTableContentBuilder implements Closeable {
+    private final SSTableHeader header;
+    private final DataOutputStream os;
+    private final File file;
+    private final FileOutputStream fos;
+
+    TreeMap<String, Long> keyOffsets = new TreeMap<>();
+
+    public SSTableContentBuilder(File f, SSTableHeader header) throws IOException {
+        this.header = header;
+        this.file = f;
+        fos = new FileOutputStream(this.file, false);
+        this.os = new DataOutputStream(new BufferedOutputStream(fos));
+        writeHeader();
+    }
+
+    private long currentBlockSize = Long.MAX_VALUE;
+
+    public void writeKv(String key, byte[] value) throws IOException {
+
+        if (currentBlockSize >= SSTableHandle.BLOCK_SIZE) {
+            os.flush();
+            keyOffsets.put(key, fos.getChannel().position());
+            currentBlockSize = 0;
+        }
+        this.os.writeInt(key.length());
+        this.os.writeUTF(key);
+        this.os.writeInt(value.length);
+        this.os.write(value);
+        currentBlockSize += Integer.BYTES + key.length() + Integer.BYTES + value.length;
+
+    }
+
+    private void writeHeader() throws IOException {
+        this.header.serialize(this.os);
+    }
+
+    public SSTableHandle build() throws IOException {
+        os.flush();
+        File indexf = new File(file.getAbsolutePath() + ".index");
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(indexf))) {
+            oos.writeObject(keyOffsets);
+        }
+        return new SSTableHandle(file, header, keyOffsets);
+    }
+
+
+    @Override
+    public void close() throws IOException {
+
+        File indexf = new File(file.getAbsolutePath() + ".index");
+        this.os.close();
+
+
+    }
+}
+
