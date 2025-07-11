@@ -5,6 +5,7 @@ import konputer.kvdb.MemTable;
 import konputer.kvdb.ValueHolder;
 
 import java.io.*;
+import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
@@ -16,27 +17,23 @@ import java.util.TreeMap;
 public final class SSTableHandle implements Closeable, Compactable, Lookup {
 
     public static final int BLOCK_SIZE = 1024 * 8; // 8kiBprivate final File file;
-    private final MappedByteBuffer is;
-    private final FileChannel fileChannel;
     private final File file;
     private final SSTableHeader header;
+    private final FileChannel is;
     private final NavigableMap<String, Long> keyOffsets;
     private final long fileEnd;
 
-    public SSTableHandle(File file, MappedByteBuffer is, FileChannel fileChannel, SSTableHeader header,
+    public SSTableHandle(File file, FileChannel raf, SSTableHeader header,
                          NavigableMap<String, Long> keyOffsets) {
         this.file = file;
         fileEnd = file.length();
-        this.is = is;
-        this.fileChannel = fileChannel;
+        this.is = raf;
         this.header = header;
         this.keyOffsets = keyOffsets;
     }
 
     public static SSTableHandle create(File file, SSTableHeader header, NavigableMap<String, Long> ketOffsets) throws IOException {
-        FileChannel fc = FileChannel.open(file.toPath(), StandardOpenOption.READ);
-        MappedByteBuffer is = fc.map(FileChannel.MapMode.READ_ONLY, 0, file.length());
-        return new SSTableHandle(file, is, fc, header, ketOffsets);
+        return new SSTableHandle(file, FileChannel.open(file.toPath(), StandardOpenOption.READ), header, ketOffsets);
     }
 
 
@@ -90,24 +87,25 @@ public final class SSTableHandle implements Closeable, Compactable, Lookup {
     public ValueHolder get(String key) throws Exception {
         long endOffsetRaw = endSearchOffset(key);
         long endOffset = endOffsetRaw == -1 ? (fileEnd) : endOffsetRaw;
-        for (long currentOffset = beginSearchOffset(key); currentOffset < endOffset; ) {
-            if (currentOffset == -1) {
-                return null; // empty or not found
-            }
-            is.position((int) currentOffset);
+        long beginOffset = beginSearchOffset(key);
+        if (beginOffset == -1) {
+            return null; // empty or not found
+        }
+        ByteBuffer buf = ByteBuffer.allocate((int)(endOffset - beginOffset));
+        is.read(buf, beginOffset);
+        for (long currentOffset = 0; currentOffset < endOffset - beginOffset; ) {
 
-
-
-            int keyLength = is.getInt();
+            buf.position((int)currentOffset);
+            int keyLength = buf.getInt();
             byte[] keyBytes = new byte[keyLength];
-            is.get(keyBytes);
+            buf.get(keyBytes);
             String readKey = new String(keyBytes, StandardCharsets.UTF_8);
-            int valueLength = is.getInt();
+            int valueLength = buf.getInt();
             if (!Objects.equals(key, readKey)) {
-                currentOffset = is.position() + valueLength;
+                currentOffset = buf.position() + valueLength;
             } else {
                 byte[] value = new byte[valueLength];
-                is.get(value);
+                buf.get(value);
                 return new ValueHolder(0, value);
             }
         }
@@ -116,7 +114,7 @@ public final class SSTableHandle implements Closeable, Compactable, Lookup {
 
     @Override
     public void close() throws IOException {
-        fileChannel.close();
+        is.close();
     }
 
     public File file() {
