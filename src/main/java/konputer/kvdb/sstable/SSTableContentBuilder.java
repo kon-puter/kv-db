@@ -1,6 +1,7 @@
 package konputer.kvdb.sstable;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.TreeMap;
 
 
@@ -29,8 +30,9 @@ public class SSTableContentBuilder implements Closeable {
             keyOffsets.put(key, fos.getChannel().position());
             currentBlockSize = 0;
         }
-        this.os.writeInt(key.length());
-        this.os.writeUTF(key);
+        byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
+        this.os.writeInt(keyBytes.length);
+        this.os.write(keyBytes);
         this.os.writeInt(value.length);
         this.os.write(value);
         currentBlockSize += Integer.BYTES + key.length() + Integer.BYTES + value.length;
@@ -47,7 +49,7 @@ public class SSTableContentBuilder implements Closeable {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(indexf))) {
             oos.writeObject(keyOffsets);
         }
-        return new SSTableHandle(file, header, keyOffsets);
+        return SSTableHandle.create(file, header, keyOffsets);
     }
 
 
