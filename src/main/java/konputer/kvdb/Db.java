@@ -15,9 +15,6 @@ public class Db implements Lookup, AutoCloseable{
         return store.get(key);
     }
 
-    public void flush() {
-        storeMem.flush();
-    }
 
 
     public void set(String key, byte[] value) {
@@ -26,7 +23,8 @@ public class Db implements Lookup, AutoCloseable{
 
     @Override
     public void close() throws Exception {
-        storeMem.flush();
+        persistor.shutdown();
+
         persistor.close();
         store.close();
     }

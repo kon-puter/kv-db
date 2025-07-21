@@ -4,6 +4,7 @@ import konputer.kvdb.sstable.SSTableHandle;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.invoke.VarHandle;
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -28,14 +29,20 @@ public class MemTablePersistor implements AutoCloseable{
         nonCompleted.add(memTable);
         final int txId = currentTxId.addAndGet(1);
         executor.submit(() -> {
+            //is exactly the same as memTable in function parameter due to single thread executor
             MemTable toHandle = nonCompleted.peek();
             try  {
                 SSTableHandle h = SSTableHandle.writeMemTable(toHandle, new File("tbl_" + txId + ".sstable"), txId);
+
+
                 persistentStore.addSSTable(h);
+                // could be reordered somehow CPU or JVM optimizations probably won't reorder this, but it's better to be safe
+                // synchronization is overkill as having both SSTable and MemTable doesn't produce wrong results
+                VarHandle.acquireFence();
+                nonCompleted.remove();
             } catch (IOException e) {
                 throw new RuntimeException("Failed to persist memtable", e);
             }
-            nonCompleted.remove();
         });
     }
 

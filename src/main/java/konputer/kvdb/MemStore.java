@@ -25,18 +25,18 @@ public class MemStore implements Closeable {
         // Implementation for setting a key-value pair in the database
         activeMemTable.set(key, value);
         if(activeMemTable.size() >= MAX_MEMTABLE_SIZE){
-            //TODO: race condition here, if two threads try to persist at the same time
-            persistor.schedulePersist(activeMemTable);
-            activeMemTable = new MemTable(tmanager);
+            synchronized (this) {
+                if(activeMemTable.size() >= MAX_MEMTABLE_SIZE) {
+                    flush();
+                }
+            }
         }
 
     }
-    public void flush() {
+    private void flush() {
         // Implementation for flushing the current memtable to persistent storage
-        if (activeMemTable.size() > 0) {
             persistor.schedulePersist(activeMemTable);
             activeMemTable = new MemTable(tmanager);
-        }
     }
 
     public ValueHolder get(String key) throws Exception{
