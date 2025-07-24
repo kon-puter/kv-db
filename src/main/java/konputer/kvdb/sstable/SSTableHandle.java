@@ -6,12 +6,14 @@ import konputer.kvdb.ValueHolder;
 
 import java.io.*;
 import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.*;
+import java.util.stream.Stream;
 
 import org.jooq.lambda.*;
 
@@ -21,14 +23,16 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
     private final File file;
     private final SSTableHeader header;
     private final FileChannel is;
+    private final MappedByteBuffer isMap;
     private final NavigableMap<String, Long> keyOffsets;
     private final long fileEnd;
 
     public SSTableHandle(File file, FileChannel raf, SSTableHeader header,
-                         NavigableMap<String, Long> keyOffsets) {
+                         NavigableMap<String, Long> keyOffsets) throws IOException {
         this.file = file;
         fileEnd = file.length();
         this.is = raf;
+        this.isMap = this.is.map(FileChannel.MapMode.READ_ONLY, 0, fileEnd);
         this.header = header;
         this.keyOffsets = keyOffsets;
     }
@@ -87,13 +91,7 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
         if (beginOffset < 0 || endOffset > fileEnd || beginOffset >= endOffset) {
             throw new IllegalArgumentException("Invalid offsets: beginOffset=" + beginOffset + ", endOffset=" + endOffset);
         }
-        ByteBuffer buf = ByteBuffer.allocate((int) (endOffset - beginOffset));
-        try {
-            is.read(buf, beginOffset);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        return buf;
+        return isMap.slice((int) beginOffset, (int) (endOffset - beginOffset));
     }
 
     @Override
@@ -132,7 +130,7 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
             block.position(0);
         }
 
-        public Iterator<Row> rowIterator(){
+        public Iterator<Row> rowIterator() {
             return new Iterator<Row>() {
                 @Override
                 public boolean hasNext() {
@@ -151,7 +149,7 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
             };
         }
 
-        public String nextKey(){
+        public String nextKey() {
             if (valueNext) {
                 throw new IllegalStateException("nextKey() must be called before nextValue() or skipValue()");
             }
@@ -163,7 +161,7 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
             return new String(keyBytes, StandardCharsets.UTF_8);
         }
 
-        public long skipValue(){
+        public long skipValue() {
             if (!valueNext) {
                 throw new IllegalStateException("nextKey() must be called before skipValue()");
             }
@@ -200,7 +198,7 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
         ByteBuffer buf = getBlockAt(beginOffset, endOffset);
         RowAwareBlock rowAwareBlock = new RowAwareBlock(buf);
 
-        while(rowAwareBlock.hasMore()) {
+        while (rowAwareBlock.hasMore()) {
             String currentKey = rowAwareBlock.nextKey();
             if (currentKey.equals(key)) {
                 byte[] value = rowAwareBlock.nextValue();
@@ -223,8 +221,8 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
         try {
             close();
             Files.deleteIfExists(file.toPath());
-            Files.deleteIfExists(Path.of( file.toPath() + ".index"));
-        }catch (Throwable e){
+            Files.deleteIfExists(Path.of(file.toPath() + ".index"));
+        } catch (Throwable e) {
             throw new RuntimeException("Error deleting SSTableHandle", e);
         }
     }
