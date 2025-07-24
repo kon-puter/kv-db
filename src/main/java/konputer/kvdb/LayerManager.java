@@ -5,8 +5,10 @@ import konputer.kvdb.sstable.CompactableLookup;
 import konputer.kvdb.sstable.SSTableHandle;
 
 import java.nio.ByteBuffer;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.LongSummaryStatistics;
 
 public class LayerManager implements CompactableLookup, Lookup, Compactable, AutoCloseable {
     private final ArrayList<SSTableHandle> sstables;
@@ -52,14 +54,13 @@ public class LayerManager implements CompactableLookup, Lookup, Compactable, Aut
     @Override
     public synchronized void supersededNotification() {
         RuntimeException e = null;
-        for(SSTableHandle sstable : sstables) {
+        for (SSTableHandle sstable : sstables) {
             try {
                 sstable.supersededNotification();
-            }catch (RuntimeException t){
-                if(e == null){
+            } catch (RuntimeException t) {
+                if (e == null) {
                     e = new RuntimeException("error in removal", t);
-                }
-                else {
+                } else {
                     e.addSuppressed(t);
                 }
             }

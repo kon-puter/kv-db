@@ -25,7 +25,7 @@ public class MemTable implements KvStore {
         if (old != null) {
             sizeBytes -= old.value().length;
             sizeBytes -= Integer.BYTES;
-        }else {
+        } else {
             // If the key was not present, we need to account for the key length as well
             sizeBytes += key.length() + Integer.BYTES; // +4 for the length of the key
         }

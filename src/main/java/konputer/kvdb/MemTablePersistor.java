@@ -9,9 +9,8 @@ import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 
-public class MemTablePersistor implements AutoCloseable{
+public class MemTablePersistor implements AutoCloseable {
     ExecutorService executor = Executors.newSingleThreadExecutor();
     private final ConcurrentLinkedQueue<MemTable> nonCompleted = new ConcurrentLinkedQueue<>();
 
@@ -22,7 +21,7 @@ public class MemTablePersistor implements AutoCloseable{
     }
 
     public void schedulePersist(MemTable memTable) {
-        if(memTable == null) {
+        if (memTable == null) {
             throw new IllegalArgumentException("MemTable cannot be null");
         }
         nonCompleted.add(memTable);
@@ -30,7 +29,7 @@ public class MemTablePersistor implements AutoCloseable{
         executor.submit(() -> {
             //is exactly the same as memTable in function parameter due to single thread executor
             MemTable toHandle = nonCompleted.peek();
-            try  {
+            try {
                 SSTableHandle h = SSTableHandle.writeMemTable(toHandle, new File("tbl_" + txId + ".sstable"), txId);
 
 
@@ -53,6 +52,7 @@ public class MemTablePersistor implements AutoCloseable{
     public void shutdown() {
         executor.shutdown();
     }
+
     public void close() {
         shutdown();
 

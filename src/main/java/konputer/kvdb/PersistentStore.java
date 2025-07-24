@@ -1,13 +1,10 @@
 package konputer.kvdb;
 
-import konputer.kvdb.sstable.Compactable;
 import konputer.kvdb.sstable.CompactableLookup;
 import konputer.kvdb.sstable.SSTableHandle;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class PersistentStore implements AutoCloseable, Lookup {

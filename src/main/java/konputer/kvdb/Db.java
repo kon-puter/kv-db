@@ -1,8 +1,8 @@
 package konputer.kvdb;
 
-public class Db implements Lookup, AutoCloseable{
+public class Db implements Lookup, AutoCloseable {
     PersistentStore store = new PersistentStore();
-    MemTablePersistor persistor = new MemTablePersistor( store);
+    MemTablePersistor persistor = new MemTablePersistor(store);
     MemStore storeMem = new MemStore(persistor);
 
 
@@ -14,7 +14,6 @@ public class Db implements Lookup, AutoCloseable{
         }
         return store.get(key);
     }
-
 
 
     public void set(String key, byte[] value) {

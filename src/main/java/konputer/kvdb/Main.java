@@ -4,12 +4,12 @@ public class Main {
 
     public static void main(String[] args) throws Exception {
         Db db = new Db();
-        for(int i = 0; i < 1_000_00; i++) {
+        for (int i = 0; i < 1_000_00; i++) {
             db.set("key" + i, ("value" + i).getBytes());
         }
-        Thread.currentThread().sleep(1000); // Ensure flush completes
+        Thread.sleep(1000); // Ensure flush completes
         long start = System.nanoTime();
-        for(int i = 0; i < 1_000_00; i++) {
+        for (int i = 0; i < 1_000_00; i++) {
             ValueHolder value = db.get("key" + i);
             if (value == null) {
                 System.out.println("Key not found: key" + i);

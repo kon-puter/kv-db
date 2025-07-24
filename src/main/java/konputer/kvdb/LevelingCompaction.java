@@ -1,7 +1,5 @@
 package konputer.kvdb;
 
-import static com.google.common.base.Preconditions.*;
-
 import com.google.common.math.LongMath;
 import konputer.kvdb.sstable.*;
 import org.jooq.lambda.Seq;
@@ -9,10 +7,10 @@ import org.jooq.lambda.Seq;
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.VarHandle;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.LongStream;
+
+import static com.google.common.base.Preconditions.checkState;
 
 public class LevelingCompaction implements CompactionStrategy {
 
@@ -31,7 +29,7 @@ public class LevelingCompaction implements CompactionStrategy {
         long curMaxSize = GROW_FACTOR * MemStore.MAX_MEMTABLE_SIZE;
 
         List<Long> prefixSumMaxSize = Seq.range(1, comp.size() + 1)
-                .map(i -> MemStore.MAX_MEMTABLE_SIZE * LongMath.pow(10, (int) i))
+                .map(i -> MemStore.MAX_MEMTABLE_SIZE * LongMath.pow(10, i))
                 .scanLeft(0L, Long::sum).skip(1).toUnmodifiableList();
 
         List<Long> prefixSumCompSizes = Seq.seq(comp).map(Compactable::getSize).scanLeft(0L, Long::sum)
@@ -62,7 +60,7 @@ public class LevelingCompaction implements CompactionStrategy {
         int tblId = store.currentTblId.addAndGet(1);
         try (
                 SSTableContentBuilder builder = new SSTableContentBuilder(new File("tbl_" + tblId + ".sstable"),
-                        new SSTableHeader(tblId, 0, prefixSumCompSizes.get(prefixSumCompSizes.size() - 1)));
+                        new SSTableHeader(tblId, 0, prefixSumCompSizes.get(prefixSumCompSizes.size() - 1)))
         ) {
             if (compactTo == comp.size() - 1) {
                 SSTableHandle h = SSTableMerger.merge(comp.subList(0, compactTo + 1), builder);

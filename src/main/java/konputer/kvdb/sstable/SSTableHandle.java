@@ -4,8 +4,11 @@ import com.google.common.hash.BloomFilter;
 import konputer.kvdb.Lookup;
 import konputer.kvdb.MemTable;
 import konputer.kvdb.ValueHolder;
+import org.jooq.lambda.Seq;
 
-import java.io.*;
+import java.io.Closeable;
+import java.io.File;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
@@ -13,10 +16,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.*;
-import java.util.stream.Stream;
-
-import org.jooq.lambda.*;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NavigableMap;
+import java.util.NoSuchElementException;
 
 public final class SSTableHandle implements Closeable, CompactableLookup, Compactable, Lookup {
 
@@ -192,7 +195,7 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
     @Override
     public ValueHolder get(String key) throws Exception {
 
-        if(!bloomFilter.mightContain(key)){
+        if (!bloomFilter.mightContain(key)) {
             return null;
         }
 
