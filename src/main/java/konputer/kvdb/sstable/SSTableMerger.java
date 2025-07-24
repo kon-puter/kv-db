@@ -1,27 +1,37 @@
 package konputer.kvdb.sstable;
 
+import com.google.common.collect.Iterators;
+import org.jooq.lambda.Seq;
+import org.jooq.lambda.tuple.Tuple2;
+
 import java.io.File;
-import java.util.ArrayList;
+import java.io.IOException;
+import java.util.*;
 
 public class SSTableMerger {
 
-    public final ArrayList<SSTableHandle> toMerge;
 
-    public SSTableMerger(ArrayList<SSTableHandle> toMerge) {
-        this.toMerge = toMerge;
-    }
+    public static SSTableHandle merge(List<? extends Compactable> compactables, SSTableContentBuilder builder) throws IOException {
+        //Order is from newest to oldest, needed for correct deduplication
+        List<Iterator<Row>> toMerge = Seq.seq(compactables)
+                .flatMap(c -> c.getBlocks().stream())
+                .map(ib ->
+                        Seq.seq(ib)
+                                .map(b -> new SSTableHandle.RowAwareBlock(b).rowIterator())
+                                .flatMap(Seq::seq)
+                                .iterator()
+                )
+                .toUnmodifiableList();
 
-    public SSTableMerger() {
-        this.toMerge = new ArrayList<>();
-    }
 
+        Iterator<Row> it = Iterators.mergeSorted(toMerge, Comparator.comparing(Row::key));
 
-    public void addSSTable(SSTableHandle sstable) {
-        this.toMerge.add(sstable);
-    }
+        while (it.hasNext()) {
+            Row row = it.next();
+            builder.writeKv(row.key(), row.value());
+        }
 
-    public void mergeSSTables(File file, int tblId) throws Exception {
-
+        return builder.build();
     }
 
 }

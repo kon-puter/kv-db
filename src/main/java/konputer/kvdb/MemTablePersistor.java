@@ -14,7 +14,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class MemTablePersistor implements AutoCloseable{
     ExecutorService executor = Executors.newSingleThreadExecutor();
     private final ConcurrentLinkedQueue<MemTable> nonCompleted = new ConcurrentLinkedQueue<>();
-    AtomicInteger currentTxId = new AtomicInteger(0);
 
     private final PersistentStore persistentStore;
 
@@ -27,7 +26,7 @@ public class MemTablePersistor implements AutoCloseable{
             throw new IllegalArgumentException("MemTable cannot be null");
         }
         nonCompleted.add(memTable);
-        final int txId = currentTxId.addAndGet(1);
+        final int txId = persistentStore.currentTblId.addAndGet(1);
         executor.submit(() -> {
             //is exactly the same as memTable in function parameter due to single thread executor
             MemTable toHandle = nonCompleted.peek();

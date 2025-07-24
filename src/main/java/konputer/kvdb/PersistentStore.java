@@ -1,24 +1,33 @@
 package konputer.kvdb;
 
+import konputer.kvdb.sstable.Compactable;
+import konputer.kvdb.sstable.CompactableLookup;
 import konputer.kvdb.sstable.SSTableHandle;
 
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class PersistentStore implements AutoCloseable, Lookup {
 
     public static final int GROW_FACTOR = 10;
 
-    private int maxTblId = 0;
+    final AtomicInteger currentTblId = new AtomicInteger(0);
+
 
     // uses leveling approach
 
     private final LayerManager l0;
-    private final ArrayList<SSTableHandle> layers;
+    private final ArrayList<CompactableLookup> layers;
+
+    private final CompactionStrategy compactionStrategy = new LevelingCompaction(this);
 
     public PersistentStore() {
         this.l0 = new LayerManager();
         this.layers = new ArrayList<>();
+        this.layers.add(l0);
     }
 
     public void addSSTable(SSTableHandle sstable) {
@@ -26,31 +35,18 @@ public class PersistentStore implements AutoCloseable, Lookup {
             throw new IllegalArgumentException("SSTableHandle cannot be null");
         }
         l0.addSSTable(sstable);
-        maxTblId = Math.max(maxTblId, sstable.header().table_id());
+        compactionStrategy.ensureCompacted();
     }
 
-//    void newSSTable(SSTableAction createAction) {
-//        maxTblId++;
-//        File tblFile = new File("table_" + maxTblId + ".sst");
-//        try (
-//                SSTableHandle handle = new
-//        ) {
-//            createAction.execute(handle);
-//        } catch (Exception e) {
-//            //TODO: handle exception properly
-//            throw new RuntimeException("Failed to create SSTable file: " + tblFile.getAbsolutePath(), e);
-//        }
-//    }
+    List<CompactableLookup> getCompactables() {
+        return layers;
+    }
 
 
     @Override
     public ValueHolder get(String key) throws Exception {
-        ValueHolder vh = l0.get(key);
-        if (vh != null) {
-            return vh;
-        }
-        for (SSTableHandle handle : layers) {
-            vh = handle.get(key);
+        for (Lookup handle : layers) {
+            var vh = handle.get(key);
             if (vh != null) {
                 return vh;
             }
@@ -60,20 +56,11 @@ public class PersistentStore implements AutoCloseable, Lookup {
 
     @Override
     public void close() {
-        for (SSTableHandle handle : l0.sstables) {
+        for (AutoCloseable handle : layers) {
             try {
                 handle.close();
-            } catch (Exception e) {
-                //TODO: handle exception properly
-                throw new RuntimeException("Failed to close SSTable file: " + handle.file().getAbsolutePath(), e);
-            }
-        }
-        for (SSTableHandle handle : layers) {
-            try {
-                handle.close();
-            } catch (Exception e) {
-                //TODO: handle exception properly
-                throw new RuntimeException("Failed to close SSTable file: " + handle.file().getAbsolutePath(), e);
+            } catch (Throwable e) {
+                throw new RuntimeException("Error closing handle", e);
             }
         }
     }
