@@ -63,11 +63,7 @@ public class SSTableContentBuilder implements Closeable {
 
     @Override
     public void close() throws IOException {
-
-        File indexf = new File(file.getAbsolutePath() + ".index");
         this.os.close();
-
-
     }
 }
 

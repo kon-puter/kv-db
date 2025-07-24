@@ -10,6 +10,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import static com.google.common.base.Preconditions.*;
+
 public class MemTablePersistor implements AutoCloseable {
     ExecutorService executor = Executors.newSingleThreadExecutor();
     private final ConcurrentLinkedQueue<MemTable> nonCompleted = new ConcurrentLinkedQueue<>();
@@ -29,6 +31,7 @@ public class MemTablePersistor implements AutoCloseable {
         executor.submit(() -> {
             //is exactly the same as memTable in function parameter due to single thread executor
             MemTable toHandle = nonCompleted.peek();
+            checkState(toHandle != null);
             try {
                 SSTableHandle h = SSTableHandle.writeMemTable(toHandle, new File("tbl_" + txId + ".sstable"), txId);
 

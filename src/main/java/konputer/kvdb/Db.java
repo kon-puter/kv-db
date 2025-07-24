@@ -21,7 +21,7 @@ public class Db implements Lookup, AutoCloseable {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() {
         persistor.shutdown();
 
         persistor.close();

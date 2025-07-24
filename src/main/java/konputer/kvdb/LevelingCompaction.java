@@ -26,7 +26,6 @@ public class LevelingCompaction implements CompactionStrategy {
     @Override
     public void ensureCompacted() {
         List<CompactableLookup> comp = store.getCompactables();
-        long curMaxSize = GROW_FACTOR * MemStore.MAX_MEMTABLE_SIZE;
 
         List<Long> prefixSumMaxSize = Seq.range(1, comp.size() + 1)
                 .map(i -> MemStore.MAX_MEMTABLE_SIZE * LongMath.pow(10, i))

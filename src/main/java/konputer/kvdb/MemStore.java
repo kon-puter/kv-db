@@ -4,7 +4,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Iterator;
 
-public class MemStore implements Closeable {
+public class MemStore implements AutoCloseable {
     public static final int MAX_MEMTABLE_SIZE = 1024 * 1024;
 
     TransactionManager tmanager;
@@ -54,7 +54,9 @@ public class MemStore implements Closeable {
 
 
     @Override
-    public void close() throws IOException {
+    public void close() {
+        persistor.close();
+
     }
 
 }

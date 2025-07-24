@@ -122,22 +122,12 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
             block.position(0);
         }
 
-        public ByteBuffer getBlock() {
-            return block;
-        }
-
         boolean hasMore() {
             return block.hasRemaining();
         }
 
-        public void setBlock(ByteBuffer block) {
-            this.block = block;
-            valueNext = false;
-            block.position(0);
-        }
-
         public Iterator<Row> rowIterator() {
-            return new Iterator<Row>() {
+            return new Iterator<>() {
                 @Override
                 public boolean hasNext() {
                     return hasMore();
@@ -238,13 +228,6 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
         }
     }
 
-    public File file() {
-        return file;
-    }
-
-    public SSTableHeader header() {
-        return header;
-    }
 
     public long getSize() {
         return header.size();

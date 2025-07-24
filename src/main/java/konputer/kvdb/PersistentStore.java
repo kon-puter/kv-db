@@ -9,7 +9,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class PersistentStore implements AutoCloseable, Lookup {
 
-    public static final int GROW_FACTOR = 10;
 
     final AtomicInteger currentTblId = new AtomicInteger(0);
 
