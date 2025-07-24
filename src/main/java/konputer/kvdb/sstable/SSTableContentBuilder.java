@@ -1,5 +1,8 @@
 package konputer.kvdb.sstable;
 
+import com.google.common.hash.BloomFilter;
+import com.google.common.hash.Funnels;
+
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.TreeMap;
@@ -12,12 +15,14 @@ public class SSTableContentBuilder implements Closeable {
     private final FileOutputStream fos;
 
     TreeMap<String, Long> keyOffsets = new TreeMap<>();
+    BloomFilter<String> bloomFilter;
 
     public SSTableContentBuilder(File f, SSTableHeader header) throws IOException {
         this.header = header;
         this.file = f;
         fos = new FileOutputStream(this.file, false);
         this.os = new DataOutputStream(new BufferedOutputStream(fos));
+        bloomFilter = BloomFilter.create(Funnels.stringFunnel(StandardCharsets.UTF_8), 10000);
         writeHeader();
     }
 
@@ -25,6 +30,7 @@ public class SSTableContentBuilder implements Closeable {
 
     public void writeKv(String key, byte[] value) throws IOException {
 
+        this.bloomFilter.put(key);
         if (currentBlockSize >= SSTableHandle.BLOCK_SIZE) {
             os.flush();
             keyOffsets.put(key, fos.getChannel().position());
@@ -48,8 +54,10 @@ public class SSTableContentBuilder implements Closeable {
         File indexf = new File(file.getAbsolutePath() + ".index");
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(indexf))) {
             oos.writeObject(keyOffsets);
+            oos.writeObject(bloomFilter);
         }
-        return SSTableHandle.create(file, header, keyOffsets);
+
+        return SSTableHandle.create(file, header, keyOffsets, bloomFilter);
     }
 
 

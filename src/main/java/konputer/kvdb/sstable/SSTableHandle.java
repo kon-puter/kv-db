@@ -1,5 +1,6 @@
 package konputer.kvdb.sstable;
 
+import com.google.common.hash.BloomFilter;
 import konputer.kvdb.Lookup;
 import konputer.kvdb.MemTable;
 import konputer.kvdb.ValueHolder;
@@ -19,43 +20,45 @@ import org.jooq.lambda.*;
 
 public final class SSTableHandle implements Closeable, CompactableLookup, Compactable, Lookup {
 
-    public static final int BLOCK_SIZE = 1024 * 8; // 8kiBprivate final File file;
+    public static final int BLOCK_SIZE = 1024;
     private final File file;
     private final SSTableHeader header;
     private final FileChannel is;
     private final MappedByteBuffer isMap;
     private final NavigableMap<String, Long> keyOffsets;
     private final long fileEnd;
+    private final BloomFilter<String> bloomFilter;
 
     public SSTableHandle(File file, FileChannel raf, SSTableHeader header,
-                         NavigableMap<String, Long> keyOffsets) throws IOException {
+                         NavigableMap<String, Long> keyOffsets, BloomFilter<String> bloomFilter) throws IOException {
         this.file = file;
         fileEnd = file.length();
         this.is = raf;
+        this.bloomFilter = bloomFilter;
         this.isMap = this.is.map(FileChannel.MapMode.READ_ONLY, 0, fileEnd);
         this.header = header;
         this.keyOffsets = keyOffsets;
     }
 
-    public static SSTableHandle create(File file, SSTableHeader header, NavigableMap<String, Long> ketOffsets) throws IOException {
-        return new SSTableHandle(file, FileChannel.open(file.toPath(), StandardOpenOption.READ), header, ketOffsets);
+    public static SSTableHandle create(File file, SSTableHeader header, NavigableMap<String, Long> ketOffsets, BloomFilter<String> bloomFilter) throws IOException {
+        return new SSTableHandle(file, FileChannel.open(file.toPath(), StandardOpenOption.READ), header, ketOffsets, bloomFilter);
     }
 
-
-    public static SSTableHandle fromFile(File file) throws IOException {
-        DataInputStream is = new DataInputStream(new BufferedInputStream(new FileInputStream(file)));
-        int tblId = is.readInt();
-        int maxTxId = is.readInt();
-        int size = is.readInt();
-        try (
-                ObjectInputStream ois = new ObjectInputStream((new FileInputStream(file)));
-        ) {
-            @SuppressWarnings("unchecked") NavigableMap<String, Long> keyOffsets = (TreeMap<String, Long>) ois.readObject();
-            return SSTableHandle.create(file, new SSTableHeader(tblId, maxTxId, size), keyOffsets);
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-    }
+//
+//    public static SSTableHandle fromFile(File file) throws IOException {
+//        DataInputStream is = new DataInputStream(new BufferedInputStream(new FileInputStream(file)));
+//        int tblId = is.readInt();
+//        int maxTxId = is.readInt();
+//        int size = is.readInt();
+//        try (
+//                ObjectInputStream ois = new ObjectInputStream((new FileInputStream(file)));
+//        ) {
+//            @SuppressWarnings("unchecked") NavigableMap<String, Long> keyOffsets = (TreeMap<String, Long>) ois.readObject();
+//            return SSTableHandle.create(file, new SSTableHeader(tblId, maxTxId, size), keyOffsets);
+//        } catch (ClassNotFoundException e) {
+//            throw new RuntimeException(e);
+//        }
+//    }
 
     public static SSTableHandle writeMemTable(MemTable memtable, File file, int tblId) throws IOException {
         //TODO: use something like Apache Avro for better serialization that supports schema evolution
@@ -188,6 +191,11 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
 
     @Override
     public ValueHolder get(String key) throws Exception {
+
+        if(!bloomFilter.mightContain(key)){
+            return null;
+        }
+
         long endOffsetRaw = endSearchOffset(key);
         long endOffset = endOffsetRaw == -1 ? (fileEnd) : endOffsetRaw;
         long beginOffset = beginSearchOffset(key);

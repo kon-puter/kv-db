@@ -44,7 +44,7 @@ public class PersistentStore implements AutoCloseable, Lookup {
 
 
     @Override
-    public ValueHolder get(String key) throws Exception {
+    public synchronized ValueHolder get(String key) throws Exception {
         for (Lookup handle : layers) {
             var vh = handle.get(key);
             if (vh != null) {

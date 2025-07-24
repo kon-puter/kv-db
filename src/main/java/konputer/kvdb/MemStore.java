@@ -9,7 +9,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MemStore implements Closeable {
-    public static final int MAX_MEMTABLE_SIZE = 1024 * 1024; // 1 MiB
+    public static final int MAX_MEMTABLE_SIZE = 1024 * 1024;
 
     TransactionManager tmanager;
     MemTable activeMemTable;

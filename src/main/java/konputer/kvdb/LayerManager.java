@@ -32,7 +32,7 @@ public class LayerManager implements CompactableLookup, Lookup, Compactable, Aut
     }
 
     @Override
-    public ValueHolder get(String key) throws Exception {
+    public synchronized ValueHolder get(String key) throws Exception {
         for (int i = sstables.size() - 1; i >= 0; i--) {
             ValueHolder value = sstables.get(i).get(key);
             if (value != null) {
@@ -50,7 +50,7 @@ public class LayerManager implements CompactableLookup, Lookup, Compactable, Aut
     }
 
     @Override
-    public void supersededNotification() {
+    public synchronized void supersededNotification() {
         RuntimeException e = null;
         for(SSTableHandle sstable : sstables) {
             try {

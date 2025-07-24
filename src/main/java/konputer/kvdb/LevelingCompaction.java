@@ -83,9 +83,11 @@ public class LevelingCompaction implements CompactionStrategy {
 
             // remove leveled layers that were compacted
             // layer 0 must not be removed
-            for (int i = 1; i <= compactTo; i++) {
-                comp.get(i).supersededNotification();
-                comp.set(i, EMPTY_LAYER);
+            synchronized (store) {
+                for (int i = 1; i <= compactTo; i++) {
+                    comp.get(i).supersededNotification();
+                    comp.set(i, EMPTY_LAYER);
+                }
             }
 
 

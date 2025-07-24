@@ -7,7 +7,7 @@ public class Main {
         for(int i = 0; i < 1_000_00; i++) {
             db.set("key" + i, ("value" + i).getBytes());
         }
-        Thread.currentThread().sleep(10000); // Ensure flush completes
+        Thread.currentThread().sleep(1000); // Ensure flush completes
         long start = System.nanoTime();
         for(int i = 0; i < 1_000_00; i++) {
             ValueHolder value = db.get("key" + i);
