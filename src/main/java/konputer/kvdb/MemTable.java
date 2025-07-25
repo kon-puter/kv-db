@@ -3,6 +3,7 @@ package konputer.kvdb;
 import konputer.kvdb.sstable.SSTableContentBuilder;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -44,14 +45,12 @@ public class MemTable implements KvStore {
 
     @Override
     public boolean cas(String key, byte[] newVal, byte[] expected) {
-        byte[] oldVal = store.get(key).value();
-
         //TODO: test adding outer condition
         sizeLock.readLock().lock();
         try
          {
-            if (store.replace(key, new ValueHolder(oldVal), new ValueHolder(newVal))) {
-                sizeBytes.add(newVal.length - oldVal.length); // Adjust size for the new value
+            if (store.replace(key, new ValueHolder(expected), new ValueHolder(newVal))) {
+                sizeBytes.add(newVal.length - expected.length); // Adjust size for the new value
                 return true;
             }
         }finally {
@@ -64,6 +63,9 @@ public class MemTable implements KvStore {
     public void remove(String key) {
 
         ValueHolder old = store.remove(key);
+        if(old == null){
+            return;
+        }
         //TODO: fix charset issues
         sizeBytes.add(-old.value().length - Integer.BYTES -key.length() - Integer.BYTES); // -4 for the length of the value
     }

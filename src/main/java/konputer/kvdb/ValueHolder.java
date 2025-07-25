@@ -6,8 +6,9 @@ import java.io.IOException;
 public record ValueHolder(
         byte[] value
 ) {
-    public void serialize(DataOutputStream os) throws IOException {
-        os.writeInt(value.length);
-        os.write(value);
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof ValueHolder &&
+                java.util.Arrays.equals(value, ((ValueHolder)o).value);
     }
 }
