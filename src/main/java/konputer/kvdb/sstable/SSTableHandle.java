@@ -65,7 +65,7 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
 
     public static SSTableHandle writeMemTable(MemTable memtable, File file, int tblId) throws IOException {
         //TODO: use something like Apache Avro for better serialization that supports schema evolution
-        try (SSTableContentBuilder builder = new SSTableContentBuilder(file, new SSTableHeader(tblId, memtable.getCurrentTxId(), memtable.size()))) {
+        try (SSTableContentBuilder builder = new SSTableContentBuilder(file, new SSTableHeader(tblId, memtable.size()))) {
             memtable.serialize(builder);
             return builder.build();
         }
@@ -114,7 +114,7 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
 
     public static class RowAwareBlock {
 
-        private ByteBuffer block;
+        private final ByteBuffer block;
         boolean valueNext = false;
 
         public RowAwareBlock(ByteBuffer block) {
@@ -203,7 +203,7 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
             String currentKey = rowAwareBlock.nextKey();
             if (currentKey.equals(key)) {
                 byte[] value = rowAwareBlock.nextValue();
-                return new ValueHolder(0, value);
+                return new ValueHolder(value);
             } else {
                 rowAwareBlock.skipValue(); // Skip the value if the key does not match
             }

@@ -59,7 +59,7 @@ public class LevelingCompaction implements CompactionStrategy {
         int tblId = store.currentTblId.addAndGet(1);
         try (
                 SSTableContentBuilder builder = new SSTableContentBuilder(new File("tbl_" + tblId + ".sstable"),
-                        new SSTableHeader(tblId, 0, prefixSumCompSizes.get(prefixSumCompSizes.size() - 1)))
+                        new SSTableHeader(tblId, prefixSumCompSizes.get(prefixSumCompSizes.size() - 1)))
         ) {
             if (compactTo == comp.size() - 1) {
                 SSTableHandle h = SSTableMerger.merge(comp.subList(0, compactTo + 1), builder);

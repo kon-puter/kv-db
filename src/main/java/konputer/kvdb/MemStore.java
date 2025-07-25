@@ -5,15 +5,13 @@ import java.io.IOException;
 import java.util.Iterator;
 
 public class MemStore implements AutoCloseable {
-    public static final int MAX_MEMTABLE_SIZE = 1024 * 1024;
+    public static final int MAX_MEMTABLE_SIZE = 1024 * 1024 * 128;
 
-    TransactionManager tmanager;
     MemTable activeMemTable;
     private final MemTablePersistor persistor;
 
     public MemStore(MemTablePersistor persistor) {
-        this.tmanager = new TransactionManager();
-        this.activeMemTable = new MemTable(tmanager);
+        this.activeMemTable = new MemTable();
         this.persistor = persistor;
     }
 
@@ -33,7 +31,7 @@ public class MemStore implements AutoCloseable {
     private void flush() {
         // Implementation for flushing the current memtable to persistent storage
         persistor.schedulePersist(activeMemTable);
-        activeMemTable = new MemTable(tmanager);
+        activeMemTable = new MemTable();
     }
 
     public ValueHolder get(String key) throws Exception {
