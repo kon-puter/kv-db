@@ -5,7 +5,7 @@ import java.io.IOException;
 import java.util.Iterator;
 
 public class MemStore implements AutoCloseable {
-    public static final int MAX_MEMTABLE_SIZE = 1024 * 1024 * 128;
+    public static final int MAX_MEMTABLE_SIZE = 1024 * 1024;
 
     MemTable activeMemTable;
     private final MemTablePersistor persistor;
@@ -15,7 +15,7 @@ public class MemStore implements AutoCloseable {
         this.persistor = persistor;
     }
 
-    public void set(String key, byte[] value) {
+    public void set(String key, ValueHolder value) {
         // Implementation for setting a key-value pair in the database
         activeMemTable.set(key, value);
         if (activeMemTable.size() >= MAX_MEMTABLE_SIZE) {

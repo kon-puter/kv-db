@@ -35,7 +35,6 @@ public class MemTablePersistor implements AutoCloseable {
             try {
                 SSTableHandle h = SSTableHandle.writeMemTable(toHandle, new File("tbl_" + txId + ".sstable"), txId);
 
-
                 persistentStore.addSSTable(h);
                 // could be reordered somehow CPU or JVM optimizations probably won't reorder this, but it's better to be safe
                 // synchronization is overkill as having both SSTable and MemTable doesn't produce wrong results

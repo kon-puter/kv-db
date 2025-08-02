@@ -2,6 +2,7 @@ package konputer.kvdb.sstable;
 
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
+import konputer.kvdb.ValueHolder;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -28,7 +29,7 @@ public class SSTableContentBuilder implements Closeable {
 
     private long currentBlockSize = Long.MAX_VALUE;
 
-    public void writeKv(String key, byte[] value) throws IOException {
+    public void writeKv(String key, ValueHolder value) throws IOException {
 
         this.bloomFilter.put(key);
         if (currentBlockSize >= SSTableHandle.BLOCK_SIZE) {
@@ -39,9 +40,8 @@ public class SSTableContentBuilder implements Closeable {
         byte[] keyBytes = key.getBytes(StandardCharsets.UTF_8);
         this.os.writeInt(keyBytes.length);
         this.os.write(keyBytes);
-        this.os.writeInt(value.length);
-        this.os.write(value);
-        currentBlockSize += Integer.BYTES + key.length() + Integer.BYTES + value.length;
+        long valLen = value.serialize(os);
+        currentBlockSize += Integer.BYTES + key.length() + valLen;
 
     }
 

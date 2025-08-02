@@ -138,9 +138,7 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
                     if (!hasNext()) {
                         throw new NoSuchElementException("No more rows in the block");
                     }
-                    String key = nextKey();
-                    byte[] value = nextValue();
-                    return new Row(key, value);
+                    return new Row(nextKey(), nextValue());
                 }
             };
         }
@@ -163,21 +161,18 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
             }
 
             int valueLength = block.getInt();
-            int currentOffset = block.position() + valueLength;
+            int currentOffset = block.position() + Integer.max(valueLength, 0);
             block.position(currentOffset);
             valueNext = false;
             return currentOffset;
         }
 
-        public byte[] nextValue() {
+        public ValueHolder nextValue() {
             if (!valueNext) {
                 throw new IllegalStateException("nextKey() must be called before nextValue()");
             }
-            int valueLength = block.getInt();
-            byte[] value = new byte[valueLength];
-            block.get(value);
-            valueNext = false;
-            return value;
+
+            return ValueHolder.deserialize(block);
         }
 
     }
@@ -202,8 +197,7 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
         while (rowAwareBlock.hasMore()) {
             String currentKey = rowAwareBlock.nextKey();
             if (currentKey.equals(key)) {
-                byte[] value = rowAwareBlock.nextValue();
-                return new ValueHolder(value);
+                return rowAwareBlock.nextValue();
             } else {
                 rowAwareBlock.skipValue(); // Skip the value if the key does not match
             }

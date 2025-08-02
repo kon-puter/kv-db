@@ -1,6 +1,9 @@
 package konputer.kvdb;
 
+import java.util.Iterator;
+
 public interface KvStore {
+
     void set(String key, byte[] value);
 
     ValueHolder get(String key);
@@ -11,5 +14,4 @@ public interface KvStore {
 
     void remove(String key);
 
-    long size();
 }

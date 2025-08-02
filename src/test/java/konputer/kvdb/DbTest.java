@@ -4,20 +4,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class KvStoreTest {
-    private KvStore kvStore;
+class DbTest {
+    private Db kvStore;
 
     @BeforeEach
     void setUp() {
-        kvStore = new MemTable(); // Replace with other KvStore implementations as needed
+        kvStore = new Db(); // Replace with other KvStore implementations as needed
     }
 
     @Test
@@ -58,20 +56,8 @@ class KvStoreTest {
         kvStore.set(key, "bye".getBytes());
         kvStore.remove(key);
         assertFalse(kvStore.containsKey(key));
-        assertNull(kvStore.get(key));
+        assertNull(kvStore.getSimple(key));
     }
-
-    @Test
-    void testSize() {
-        long before = kvStore.size();
-        kvStore.set("a", "1".getBytes());
-        kvStore.set("b", "2".getBytes());
-        long after = kvStore.size();
-        assertTrue(after > before);
-        kvStore.remove("a");
-        assertTrue(kvStore.size() < after);
-    }
-
 
     /**
      * Operation ratios for benchmarking KvStore.
@@ -143,24 +129,23 @@ class KvStoreTest {
         }
         latch.await();
         long elapsed = System.nanoTime() - start;
-        return new BenchmarkResult(reads.sum(), writes.sum(), cass.sum(), removes.sum(), kvStore.size(), elapsed/1000000);
+        return new BenchmarkResult(reads.sum(), writes.sum(), cass.sum(), removes.sum(),  elapsed/1000000);
     }
 
     static class BenchmarkResult {
         final long reads, writes, cass, removes;
-        final long finalSize, elapsedMs;
-        BenchmarkResult(long reads, long writes, long cass, long removes, long finalSize, long elapsedMs) {
+        final long  elapsedMs;
+        BenchmarkResult(long reads, long writes, long cass, long removes,  long elapsedMs) {
             this.reads = reads;
             this.writes = writes;
             this.cass = cass;
             this.removes = removes;
-            this.finalSize = finalSize;
             this.elapsedMs = elapsedMs;
         }
         @Override
         public String toString() {
-            return String.format("Reads: %d, Writes: %d, CAS: %d, Removes: %d, Final Size: %d, Time: %dms",
-                    reads, writes, cass, removes, finalSize, elapsedMs);
+            return String.format("Reads: %d, Writes: %d, CAS: %d, Removes: %d, Time: %dms",
+                    reads, writes, cass, removes,  elapsedMs);
         }
     }
 
@@ -173,10 +158,9 @@ class KvStoreTest {
                 new OperationRatios(0.9, 0.05, 0.03, 0.02)
         );
         for (OperationRatios ratios : ratioSets) {
-            kvStore = new MemTable(); // Reset for each run
+            kvStore = new Db(); // Reset for each run
             BenchmarkResult result = runKvStoreBenchmark(32, 100000, ratios, 100);
             System.out.println("Ratios: " + ratios + " -> " + result);
-            assertTrue(result.finalSize >= 0);
             assertTrue(result.reads > 0);
             assertTrue(result.writes > 0);
         }
