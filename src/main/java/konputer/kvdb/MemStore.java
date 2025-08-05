@@ -1,5 +1,8 @@
 package konputer.kvdb;
 
+import konputer.kvdb.sstable.Row;
+import org.jspecify.annotations.NonNull;
+
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Iterator;
@@ -7,11 +10,12 @@ import java.util.Iterator;
 public class MemStore implements AutoCloseable {
     public static final int MAX_MEMTABLE_SIZE = 1024 * 1024;
 
-    MemTable activeMemTable;
+    private MemTable activeMemTable;
     private final MemTablePersistor persistor;
-
-    public MemStore(MemTablePersistor persistor) {
-        this.activeMemTable = new MemTable();
+    private final SnapshotManager snapshotManager;
+    public MemStore(MemTablePersistor persistor, SnapshotManager snapshotManager) {
+        this.activeMemTable = new MemTable(snapshotManager);
+        this.snapshotManager = snapshotManager;
         this.persistor = persistor;
     }
 
@@ -28,10 +32,15 @@ public class MemStore implements AutoCloseable {
 
     }
 
+    public Iterator<Row> getRawRange(@NonNull TaggedKey from, @NonNull TaggedKey to) {
+        // Implementation for getting a range of rows from the database
+        return activeMemTable.getRawRange(from, to);
+    }
+
     private void flush() {
         // Implementation for flushing the current memtable to persistent storage
         persistor.schedulePersist(activeMemTable);
-        activeMemTable = new MemTable();
+        activeMemTable = new MemTable(snapshotManager);
     }
 
     public ValueHolder get(String key) throws Exception {

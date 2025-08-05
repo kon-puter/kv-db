@@ -1,9 +1,11 @@
 package konputer.kvdb;
 
 import konputer.kvdb.sstable.CompactableLookup;
+import konputer.kvdb.sstable.Row;
 import konputer.kvdb.sstable.SSTableHandle;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -38,6 +40,13 @@ public class PersistentStore implements AutoCloseable, Lookup {
         return layers;
     }
 
+    public Iterator<Row> getRawRange(TaggedKey from, TaggedKey to) {
+        RowTransformingIterable transformer = new RowTransformingIterable(
+                layers.stream().flatMap(l -> l.getRawBlocks(from, to).stream()).toList()
+        );
+        return transformer.iterator();
+
+    }
 
     @Override
     public synchronized ValueHolder get(String key) throws Exception {

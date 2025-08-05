@@ -1,26 +1,32 @@
 package konputer.kvdb;
 
+import konputer.kvdb.sstable.Row;
 import konputer.kvdb.sstable.SSTableContentBuilder;
 
 import java.io.IOException;
-import java.util.Optional;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class MemTable{
-    private final ConcurrentSkipListMap<String, ValueHolder> store = new ConcurrentSkipListMap<>();
+    private final ConcurrentSkipListMap<TaggedKey, ValueHolder> store = new ConcurrentSkipListMap<>();
     private final LongAdder sizeBytes = new LongAdder();
     private final ReadWriteLock sizeLock = new ReentrantReadWriteLock();
 
+    private final SnapshotManager snapshotManager;
+
+    public MemTable(SnapshotManager manager) {
+        this.snapshotManager = manager;
+    }
 
     public void set(String key, ValueHolder value) {
         sizeLock.readLock().lock();
         try{
             sizeBytes.add(value.length() + Integer.BYTES); // +4 for the length of the value
-            ValueHolder old = store.put(key, value);
+            ValueHolder old = store.put(snapshotManager.taggedKey(key), value);
             if (old != null) {
                 sizeBytes.add(-old.length() - Integer.BYTES); // -4 for the length of the value
             } else {
@@ -33,26 +39,25 @@ public class MemTable{
     }
 
     public ValueHolder get(String key) {
-        return store.get(key);
-    }
 
-    public boolean containsKey(String key) {
-        return store.containsKey(key);
-    }
+        var value = store.floorEntry(new TaggedKey(key, Long.MAX_VALUE));
 
-    public boolean cas(String key, byte[] newVal, byte[] expected) {
-        //TODO: test adding outer condition
-        sizeLock.readLock().lock();
-        try
-         {
-            if (store.replace(key, new ValueHolder(expected), new ValueHolder(newVal))) {
-                sizeBytes.add(newVal.length - expected.length); // Adjust size for the new value
-                return true;
-            }
-        }finally {
-            sizeLock.readLock().unlock();
+        if(value == null) {
+            return null;
         }
-        return false;
+
+        if(value.getKey().key().equals(key)){
+            return value.getValue();
+        }
+
+        return null;
+    }
+
+    public Iterator<Row> getRawRange(TaggedKey from, TaggedKey to){
+        return store.subMap(from, true, to, true).entrySet()
+                .stream()
+                .map(e -> new Row(e.getKey(), e.getValue()))
+                .iterator();
     }
 
     public long size() {

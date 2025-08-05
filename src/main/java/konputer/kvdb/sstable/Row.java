@@ -1,9 +1,15 @@
 package konputer.kvdb.sstable;
 
+import konputer.kvdb.TaggedKey;
 import konputer.kvdb.ValueHolder;
 
 public record Row(
-        String key,
+        TaggedKey key,
         ValueHolder value
-) {
+) implements Comparable<Row>{
+
+    @Override
+    public int compareTo(Row o) {
+        return key.compareTo(o.key());
+    }
 }

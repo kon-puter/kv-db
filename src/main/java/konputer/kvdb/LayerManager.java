@@ -2,6 +2,7 @@ package konputer.kvdb;
 
 import konputer.kvdb.sstable.Compactable;
 import konputer.kvdb.sstable.CompactableLookup;
+import konputer.kvdb.sstable.Row;
 import konputer.kvdb.sstable.SSTableHandle;
 
 import java.nio.ByteBuffer;
@@ -69,6 +70,16 @@ public class LayerManager implements CompactableLookup, Lookup, Compactable, Aut
         sstables.clear();
         sizeStats.accept(-sizeStats.getSum());
     }
+
+    @Override
+    public List<Iterator<ByteBuffer>> getRawBlocks(TaggedKey from, TaggedKey to) {
+        return (
+                sstables.stream()
+                        .map(sstable -> sstable.blockRangeIterator(from, to))
+                        .toList()
+        );
+    }
+
 
     @Override
     public void close() {

@@ -39,6 +39,10 @@ public record ValueHolder(
     }
 
 
+    public boolean isTombstone() {
+        return deleted;
+    }
+
     public int length() {
         return (value == null ? 0 : value.length) + Integer.BYTES; // +4 for the length of the value
     }

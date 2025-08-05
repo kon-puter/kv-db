@@ -59,6 +59,61 @@ class DbTest {
         assertNull(kvStore.getSimple(key));
     }
 
+    @Test
+    void testRawIterateFullRange() {
+        // Insert a set of key-value pairs
+        int count = 100;
+        for (int i = 0; i < count; i++) {
+            kvStore.set("key" + i, ("val" + i).getBytes());
+        }
+        // Use rawIterate to iterate over all keys (assuming TaggedKey is comparable by key string)
+        TaggedKey from = new TaggedKey("key0", 0);
+        TaggedKey to = new TaggedKey("key" + (count - 1), Long.MAX_VALUE);
+        java.util.Map<String, String> seen = new java.util.HashMap<>();
+        for (var rowIt = ((Db)kvStore).rawIterate(from, to); rowIt.hasNext(); ) {
+            var row = rowIt.next();
+            seen.put(row.key().key(), new String(row.value().value()));
+        }
+        for (int i = 0; i < count; i++) {
+            String k = "key" + i;
+            String v = "val" + i;
+            assertEquals(v, seen.get(k));
+        }
+        assertEquals(count, seen.size());
+    }
+
+    @Test
+    void testRawIterateEmptyRange() {
+        TaggedKey from = new TaggedKey("zzz", 0);
+        TaggedKey to = new TaggedKey("zzzz", 0);
+        var it = ((Db)kvStore).rawIterate(from, to);
+        assertFalse(it.hasNext());
+    }
+
+    @Test
+    void testRawIterateWithRemovals() {
+        kvStore.set("a", "1".getBytes());
+        kvStore.set("b", "2".getBytes());
+        kvStore.set("c", "3".getBytes());
+        kvStore.remove("b");
+        TaggedKey from = new TaggedKey("a", 0);
+        TaggedKey to = new TaggedKey("c", Long.MAX_VALUE);
+        java.util.Set<String> keys = new java.util.HashSet<>();
+        for (var it = ((Db)kvStore).rawIterate(from, to); it.hasNext(); ) {
+            var row = it.next();
+            if (!row.value().isTombstone()) {
+                keys.add(row.key().key());
+            }
+        }
+        assertTrue(keys.contains("a"));
+        assertFalse(keys.contains("b"));
+        assertTrue(keys.contains("c"));
+    }
+
+
+
+
+
     /**
      * Operation ratios for benchmarking KvStore.
      */

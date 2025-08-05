@@ -1,11 +1,14 @@
 package konputer.kvdb;
 
+import konputer.kvdb.sstable.Row;
 import konputer.kvdb.sstable.SSTableHandle;
+import org.jooq.lambda.Seq;
 
 import java.io.File;
 import java.io.IOException;
 import java.lang.invoke.VarHandle;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -27,13 +30,13 @@ public class MemTablePersistor implements AutoCloseable {
             throw new IllegalArgumentException("MemTable cannot be null");
         }
         nonCompleted.add(memTable);
-        final int txId = persistentStore.currentTblId.addAndGet(1);
+        final int tblId = persistentStore.currentTblId.addAndGet(1);
         executor.submit(() -> {
             //is exactly the same as memTable in function parameter due to single thread executor
             MemTable toHandle = nonCompleted.peek();
             checkState(toHandle != null);
             try {
-                SSTableHandle h = SSTableHandle.writeMemTable(toHandle, new File("tbl_" + txId + ".sstable"), txId);
+                SSTableHandle h = SSTableHandle.writeMemTable(toHandle, new File("tbl_" + tblId + ".sstable"), tblId);
 
                 persistentStore.addSSTable(h);
                 // could be reordered somehow CPU or JVM optimizations probably won't reorder this, but it's better to be safe
@@ -44,6 +47,15 @@ public class MemTablePersistor implements AutoCloseable {
                 throw new RuntimeException("Failed to persist memtable", e);
             }
         });
+    }
+
+
+
+    public List<Iterator<Row>> getRawRange(TaggedKey from, TaggedKey to) {
+        // This method is used to get a range of rows from the non-completed memtables
+        return Seq.seq(nonCompleted)
+                .map(memTable -> memTable.getRawRange(from, to))
+                .toUnmodifiableList();
     }
 
 
@@ -66,7 +78,7 @@ public class MemTablePersistor implements AutoCloseable {
             executor.shutdownNow();
         }
         if (!nonCompleted.isEmpty()) {
-            throw new RuntimeException("Failed to persist memtable");
+            throw new RuntimeException("Failed to persist memtable, " + Thread.currentThread().isInterrupted());
         }
     }
 

@@ -1,9 +1,7 @@
 package konputer.kvdb.sstable;
 
 import com.google.common.hash.BloomFilter;
-import konputer.kvdb.Lookup;
-import konputer.kvdb.MemTable;
-import konputer.kvdb.ValueHolder;
+import konputer.kvdb.*;
 import org.jooq.lambda.Seq;
 
 import java.io.Closeable;
@@ -28,12 +26,11 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
     private final SSTableHeader header;
     private final FileChannel is;
     private final MappedByteBuffer isMap;
-    private final NavigableMap<String, Long> keyOffsets;
+    private final NavigableMap<TaggedKey, Long> keyOffsets;
     private final long fileEnd;
     private final BloomFilter<String> bloomFilter;
 
-    public SSTableHandle(File file, FileChannel raf, SSTableHeader header,
-                         NavigableMap<String, Long> keyOffsets, BloomFilter<String> bloomFilter) throws IOException {
+    public SSTableHandle(File file, FileChannel raf, SSTableHeader header, NavigableMap<TaggedKey, Long> keyOffsets, BloomFilter<String> bloomFilter) throws IOException {
         this.file = file;
         fileEnd = file.length();
         this.is = raf;
@@ -43,25 +40,9 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
         this.keyOffsets = keyOffsets;
     }
 
-    public static SSTableHandle create(File file, SSTableHeader header, NavigableMap<String, Long> ketOffsets, BloomFilter<String> bloomFilter) throws IOException {
+    public static SSTableHandle create(File file, SSTableHeader header, NavigableMap<TaggedKey, Long> ketOffsets, BloomFilter<String> bloomFilter) throws IOException {
         return new SSTableHandle(file, FileChannel.open(file.toPath(), StandardOpenOption.READ), header, ketOffsets, bloomFilter);
     }
-
-//
-//    public static SSTableHandle fromFile(File file) throws IOException {
-//        DataInputStream is = new DataInputStream(new BufferedInputStream(new FileInputStream(file)));
-//        int tblId = is.readInt();
-//        int maxTxId = is.readInt();
-//        int size = is.readInt();
-//        try (
-//                ObjectInputStream ois = new ObjectInputStream((new FileInputStream(file)));
-//        ) {
-//            @SuppressWarnings("unchecked") NavigableMap<String, Long> keyOffsets = (TreeMap<String, Long>) ois.readObject();
-//            return SSTableHandle.create(file, new SSTableHeader(tblId, maxTxId, size), keyOffsets);
-//        } catch (ClassNotFoundException e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
 
     public static SSTableHandle writeMemTable(MemTable memtable, File file, int tblId) throws IOException {
         //TODO: use something like Apache Avro for better serialization that supports schema evolution
@@ -71,7 +52,7 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
         }
     }
 
-    private long beginSearchOffset(String key) {
+    private long beginSearchOffset(TaggedKey key) {
         // This method is used to find the offset of the key in the SSTable
         // It uses binary search on the keyOffsets map to find the closest key
         var entry = keyOffsets.floorEntry(key);
@@ -81,7 +62,7 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
         return -1;
     }
 
-    private long endSearchOffset(String key) {
+    private long endSearchOffset(TaggedKey key) {
         // This method is used to find the end offset of the key in the SSTable
         // It uses binary search on the keyOffsets map to find the next key
         var entry = keyOffsets.higherEntry(key);
@@ -100,16 +81,31 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
         return isMap.slice((int) beginOffset, (int) (endOffset - beginOffset));
     }
 
+    public Iterator<Row> getRawRange(TaggedKey from, TaggedKey to) {
+        if (from.compareTo(to) > 0) {
+            throw new IllegalArgumentException("from key must be less than or equal to to key");
+        }
+
+        return (new RowTransformingIterable(List.of(blockRangeIterator(from, to)))).iterator();
+    }
+
+    @Override
+    public List<Iterator<ByteBuffer>> getRawBlocks(TaggedKey from, TaggedKey to) {
+        return List.of(blockRangeIterator(from, to));
+    }
+
+    public Iterator<ByteBuffer> blockRangeIterator(TaggedKey from, TaggedKey to) {
+        if (from.compareTo(to) > 0) {
+            throw new IllegalArgumentException("from key must be less than or equal to to key");
+        }
+
+        return Seq.seq(keyOffsets.subMap(from, true, to, true).values()).window(0, 1).map(window -> getBlockAt(window.nthValue(0).orElseThrow(), window.nthValue(1).orElse(fileEnd))).iterator();
+
+    }
+
     @Override
     public List<Iterator<ByteBuffer>> getBlocks() {
-        return List.of(
-                Seq.seq(keyOffsets.values())
-                        .window(0, 1)
-                        .map(window ->
-                                getBlockAt(window.nthValue(0).orElseThrow(), window.nthValue(1).orElse(fileEnd))
-                        )
-                        .iterator()
-        );
+        return List.of(Seq.seq(keyOffsets.values()).window(0, 1).map(window -> getBlockAt(window.nthValue(0).orElseThrow(), window.nthValue(1).orElse(fileEnd))).iterator());
     }
 
     public static class RowAwareBlock {
@@ -143,16 +139,12 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
             };
         }
 
-        public String nextKey() {
+        public TaggedKey nextKey() {
             if (valueNext) {
                 throw new IllegalStateException("nextKey() must be called before nextValue() or skipValue()");
             }
-
-            int keyLength = block.getInt();
-            byte[] keyBytes = new byte[keyLength];
-            block.get(keyBytes);
             valueNext = true;
-            return new String(keyBytes, StandardCharsets.UTF_8);
+            return TaggedKey.deserialize(block);
         }
 
         public long skipValue() {
@@ -184,9 +176,10 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
             return null;
         }
 
-        long endOffsetRaw = endSearchOffset(key);
+
+        long endOffsetRaw = endSearchOffset(new TaggedKey(key, Long.MAX_VALUE));
         long endOffset = endOffsetRaw == -1 ? (fileEnd) : endOffsetRaw;
-        long beginOffset = beginSearchOffset(key);
+        long beginOffset = beginSearchOffset(new TaggedKey(key, 0));
         if (beginOffset == -1) {
             return null; // empty or not found
         }
@@ -195,8 +188,8 @@ public final class SSTableHandle implements Closeable, CompactableLookup, Compac
         RowAwareBlock rowAwareBlock = new RowAwareBlock(buf);
 
         while (rowAwareBlock.hasMore()) {
-            String currentKey = rowAwareBlock.nextKey();
-            if (currentKey.equals(key)) {
+            TaggedKey currentKey = rowAwareBlock.nextKey();
+            if (currentKey.key().equals(key)) {
                 return rowAwareBlock.nextValue();
             } else {
                 rowAwareBlock.skipValue(); // Skip the value if the key does not match
