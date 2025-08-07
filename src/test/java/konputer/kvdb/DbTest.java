@@ -130,9 +130,182 @@ class DbTest {
 
     }
 
+    @Test
+    void testGetRangeBasic() {
+        // Setup test data
+        kvStore.set("apple", "red".getBytes());
+        kvStore.set("banana", "yellow".getBytes());
+        kvStore.set("cherry", "red".getBytes());
+        kvStore.set("date", "brown".getBytes());
 
+        // Test range query
+        TaggedKey from = new TaggedKey("apple", 0);
+        TaggedKey to = new TaggedKey("cherry", Long.MAX_VALUE);
 
+        java.util.List<String> keys = new java.util.ArrayList<>();
+        java.util.List<String> values = new java.util.ArrayList<>();
 
+        var it = ((Db)kvStore).getRange(from, to);
+        while (it.hasNext()) {
+            var row = it.next();
+            keys.add(row.key().key());
+            values.add(new String(row.value().value()));
+        }
+
+        assertEquals(3, keys.size());
+        assertEquals(java.util.List.of("apple", "banana", "cherry"), keys);
+        assertEquals(java.util.List.of("red", "yellow", "red"), values);
+    }
+
+    @Test
+    void testGetRangeEmpty() {
+        // Test empty range
+        TaggedKey from = new TaggedKey("zzz", 0);
+        TaggedKey to = new TaggedKey("zzzz", Long.MAX_VALUE);
+
+        var it = ((Db)kvStore).getRange(from, to);
+        assertFalse(it.hasNext());
+    }
+
+    @Test
+    void testGetRangeWithTombstones() {
+        // Setup data and then remove some
+        kvStore.set("a", "1".getBytes());
+        kvStore.set("b", "2".getBytes());
+        kvStore.set("c", "3".getBytes());
+        kvStore.set("d", "4".getBytes());
+
+        // Remove middle entries
+        kvStore.remove("b");
+        kvStore.remove("c");
+
+        TaggedKey from = new TaggedKey("a", 0);
+        TaggedKey to = new TaggedKey("d", Long.MAX_VALUE);
+
+        java.util.List<String> keys = new java.util.ArrayList<>();
+        java.util.List<String> values = new java.util.ArrayList<>();
+
+        var it = ((Db)kvStore).getRange(from, to);
+        while (it.hasNext()) {
+            var row = it.next();
+            keys.add(row.key().key());
+            values.add(new String(row.value().value()));
+        }
+
+        // Should only see non-tombstone entries
+        assertEquals(2, keys.size());
+        assertEquals(java.util.List.of("a", "d"), keys);
+        assertEquals(java.util.List.of("1", "4"), values);
+    }
+
+    @Test
+    void testGetRangeWithUpdates() {
+        // Test that only latest version of each key is returned
+        kvStore.set("key1", "v1".getBytes());
+        kvStore.set("key2", "v2".getBytes());
+        kvStore.snapshot();
+        kvStore.set("key1", "v1_updated".getBytes()); // Update key1
+        kvStore.set("key3", "v3".getBytes());
+        kvStore.snapshot();
+        kvStore.set("key2", "v2_updated".getBytes()); // Update key2
+
+        TaggedKey from = new TaggedKey("key1", 0);
+        TaggedKey to = new TaggedKey("key3", Long.MAX_VALUE);
+
+        java.util.Map<String, String> results = new java.util.HashMap<>();
+        var it = ((Db)kvStore).getRange(from, to);
+        while (it.hasNext()) {
+            var row = it.next();
+            results.put(row.key().key(), new String(row.value().value()));
+        }
+
+        assertEquals(3, results.size());
+        assertEquals("v1_updated", results.get("key1"));
+        assertEquals("v2_updated", results.get("key2"));
+        assertEquals("v3", results.get("key3"));
+    }
+
+    @Test
+    void testGetRangeSingleKey() {
+        // Test range containing a single key
+        kvStore.set("middle", "value".getBytes());
+
+        TaggedKey from = new TaggedKey("middle", 0);
+        TaggedKey to = new TaggedKey("middle", Long.MAX_VALUE);
+
+        var it = ((Db)kvStore).getRange(from, to);
+        assertTrue(it.hasNext());
+        var row = it.next();
+        assertEquals("middle", row.key().key());
+        assertEquals("value", new String(row.value().value()));
+        assertFalse(it.hasNext());
+    }
+
+    @Test
+    void testGetRangeOrdering() {
+        // Test that results are returned in key order
+        kvStore.set("z", "last".getBytes());
+        kvStore.set("a", "first".getBytes());
+        kvStore.set("m", "middle".getBytes());
+        kvStore.set("b", "second".getBytes());
+
+        TaggedKey from = new TaggedKey("a", 0);
+        TaggedKey to = new TaggedKey("z", Long.MAX_VALUE);
+
+        java.util.List<String> keys = new java.util.ArrayList<>();
+        var it = ((Db)kvStore).getRange(from, to);
+        while (it.hasNext()) {
+            keys.add(it.next().key().key());
+        }
+
+        assertEquals(java.util.List.of("a", "b", "m", "z"), keys);
+    }
+
+    @Test
+    void testGetRangePartialMatch() {
+        // Test range that doesn't start/end on exact keys
+        kvStore.set("apple", "red".getBytes());
+        kvStore.set("banana", "yellow".getBytes());
+        kvStore.set("cherry", "red".getBytes());
+        kvStore.set("date", "brown".getBytes());
+
+        // Range from "b" to "d" should include banana and cherry but not date
+        TaggedKey from = new TaggedKey("b", 0);
+        TaggedKey to = new TaggedKey("d", 0);
+
+        java.util.List<String> keys = new java.util.ArrayList<>();
+        var it = ((Db)kvStore).getRange(from, to);
+        while (it.hasNext()) {
+            keys.add(it.next().key().key());
+        }
+
+        assertEquals(java.util.List.of("banana", "cherry"), keys);
+    }
+
+    @Test
+    void testGetRangeIteratorContract() {
+        // Test proper iterator behavior - hasNext() shouldn't advance, next() should throw when no more elements
+        kvStore.set("test", "value".getBytes());
+
+        TaggedKey from = new TaggedKey("test", 0);
+        TaggedKey to = new TaggedKey("test", Long.MAX_VALUE);
+
+        var it = ((Db)kvStore).getRange(from, to);
+
+        // Multiple hasNext() calls should be safe
+        assertTrue(it.hasNext());
+        assertTrue(it.hasNext());
+
+        // Get the element
+        var row = it.next();
+        assertEquals("test", row.key().key());
+
+        // Should be empty now
+        assertFalse(it.hasNext());
+
+        // next() should throw
+        assertThrows(IllegalStateException.class, it::next);
+    }
 
     /**
      * Operation ratios for benchmarking KvStore.

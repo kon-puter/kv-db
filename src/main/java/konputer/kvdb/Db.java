@@ -18,8 +18,6 @@ import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.stream.Stream;
 
-import static com.google.common.base.Preconditions.*;
-
 public class Db implements Lookup, AutoCloseable, KvStore {
     private static final int LOCK_COUNT = 512;
     private final PersistentStore store = new PersistentStore();
@@ -57,7 +55,42 @@ public class Db implements Lookup, AutoCloseable, KvStore {
     }
 
     public Iterator<Row> getRange(@NonNull TaggedKey from, @NonNull TaggedKey to) {
-        return rawIterate(from, to);
+        //Iterator that filters out tombstones and older entries with the same key
+        return new Iterator<>() {
+            private final Iterator<Row> inner = rawIterate(from, to);
+            private Row prev = null;
+            private Row peeked = null;
+            private boolean seen = true;
+
+            @Override
+            public boolean hasNext() {
+                if (!seen) {
+                    return true;
+                }
+                while (inner.hasNext()) {
+                    Row next = inner.next();
+                    if (
+                            next != null && next.value() != null && !next.value().isTombstone() &&
+                                    (prev == null || !next.key().equals(prev.key()))
+                    ) {
+                        prev = peeked;
+                        peeked = next;
+                        seen = false;
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            @Override
+            public Row next() {
+                if (!hasNext()) {
+                    throw new IllegalStateException("No more elements in the iterator");
+                }
+                seen = true;
+                return peeked;
+            }
+        };
     }
 
     public Iterator<Row> rawIterate(@NonNull TaggedKey from, @NonNull TaggedKey to) {
