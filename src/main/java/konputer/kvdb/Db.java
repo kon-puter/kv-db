@@ -18,17 +18,19 @@ import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.stream.Stream;
 
+import static com.google.common.base.Preconditions.*;
+
 public class Db implements Lookup, AutoCloseable, KvStore {
     private static final int LOCK_COUNT = 512;
-    PersistentStore store = new PersistentStore();
-    MemTablePersistor persistor = new MemTablePersistor(store);
+    private final PersistentStore store = new PersistentStore();
+    private final MemTablePersistor persistor = new MemTablePersistor(store);
     private final SnapshotManager snapshotManager = new SnapshotManager(1);
-    MemStore storeMem = new MemStore(persistor, snapshotManager);
-    Striped<Lock> locks = Striped.lock(LOCK_COUNT);
+    private final MemStore storeMem = new MemStore(persistor, snapshotManager);
+    private final Striped<Lock> locks = Striped.lock(LOCK_COUNT);
 
 
     @Override
-    public ValueHolder get(String key) {
+    public ValueHolder get(@NonNull String key) {
         try {
             ValueHolder value = storeMem.get(key);
             if (value != null) {
@@ -46,7 +48,7 @@ public class Db implements Lookup, AutoCloseable, KvStore {
         return new DbView(snapshotId, this);
     }
 
-    public byte[] getSimple(String key) {
+    public byte[] getSimple(@NonNull String key) {
         ValueHolder value = get(key);
         if (value != null) {
             return value.value();
@@ -54,7 +56,7 @@ public class Db implements Lookup, AutoCloseable, KvStore {
         return null;
     }
 
-    public Iterator<Row> getRange(TaggedKey from, TaggedKey to) {
+    public Iterator<Row> getRange(@NonNull TaggedKey from, @NonNull TaggedKey to) {
         return rawIterate(from, to);
     }
 
@@ -70,21 +72,22 @@ public class Db implements Lookup, AutoCloseable, KvStore {
                 Comparator.naturalOrder());
     }
 
-    public void set(String key, byte[] value) {
+    public void set(@NonNull String key, byte[] value) {
+
         set(new TaggedKey(key, snapshotManager.currentSnapshotId()), new ValueHolder(value));
     }
 
-    public void set(TaggedKey key, ValueHolder value) {
+    public void set(@NonNull TaggedKey key, @NonNull ValueHolder value) {
         storeMem.set(key, value);
     }
 
     @Override
-    public boolean containsKey(String key) {
+    public boolean containsKey(@NonNull String key) {
         return getSimple(key) != null;
     }
 
     @Override
-    public boolean cas(String key, byte[] newVal, byte[] expected) {
+    public boolean cas(@NonNull String key, byte[] newVal, byte[] expected) {
         //TODO test adding outer condition
         Lock l = locks.get(key);
         l.lock();
@@ -100,7 +103,7 @@ public class Db implements Lookup, AutoCloseable, KvStore {
     }
 
     @Override
-    public void remove(String key) {
+    public void remove(@NonNull String key) {
         set(new TaggedKey(key, snapshotManager.currentSnapshotId()), ValueHolder.tombstone());
     }
 

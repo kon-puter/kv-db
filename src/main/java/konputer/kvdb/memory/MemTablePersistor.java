@@ -5,6 +5,7 @@ import konputer.kvdb.dtos.Row;
 import konputer.kvdb.dtos.TaggedKey;
 import konputer.kvdb.persistent.SSTableHandle;
 import org.jooq.lambda.Seq;
+import org.jspecify.annotations.NonNull;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,14 +24,11 @@ public class MemTablePersistor implements AutoCloseable {
 
     private final PersistentStore persistentStore;
 
-    public MemTablePersistor(PersistentStore persistentStore) {
+    public MemTablePersistor(@NonNull PersistentStore persistentStore) {
         this.persistentStore = persistentStore;
     }
 
-    public void schedulePersist(MemTable memTable) {
-        if (memTable == null) {
-            throw new IllegalArgumentException("MemTable cannot be null");
-        }
+    public void schedulePersist(@NonNull MemTable memTable) {
         nonCompleted.add(memTable);
         final int tblId = persistentStore.nextTblId();
         executor.submit(() -> {
