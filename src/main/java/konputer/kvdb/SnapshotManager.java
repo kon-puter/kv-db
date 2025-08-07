@@ -18,9 +18,6 @@ public class SnapshotManager {
         return snapshotIdCounter.get();
     }
 
-    public TaggedKey taggedKey(String key){
-        return new TaggedKey(key, currentSnapshotId());
-    }
 
 
 }

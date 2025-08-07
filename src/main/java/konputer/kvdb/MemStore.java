@@ -19,7 +19,7 @@ public class MemStore implements AutoCloseable {
         this.persistor = persistor;
     }
 
-    public void set(String key, ValueHolder value) {
+    public void set(TaggedKey key, ValueHolder value) {
         // Implementation for setting a key-value pair in the database
         activeMemTable.set(key, value);
         if (activeMemTable.size() >= MAX_MEMTABLE_SIZE) {

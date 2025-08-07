@@ -35,6 +35,12 @@ public class Db implements Lookup, AutoCloseable, KvStore {
         }
     }
 
+    public DbView snapshot() {
+        long snapshotId = snapshotManager.doSnapshot();
+
+        return new DbView(snapshotId, this);
+    }
+
     public byte[] getSimple(String key) {
         ValueHolder value = get(key);
         if (value != null) {
@@ -44,8 +50,7 @@ public class Db implements Lookup, AutoCloseable, KvStore {
     }
 
     public Iterator<Row> getRange(TaggedKey from, TaggedKey to) {
-        //TODO: do this
-        throw new RuntimeException("Not implemented yet");
+        return rawIterate(from, to);
     }
 
     public Iterator<Row> rawIterate(@NonNull TaggedKey from, @NonNull TaggedKey to) {
@@ -61,10 +66,10 @@ public class Db implements Lookup, AutoCloseable, KvStore {
     }
 
     public void set(String key, byte[] value) {
-        set(key, new ValueHolder(value));
+        set(new TaggedKey(key, snapshotManager.currentSnapshotId()), new ValueHolder(value));
     }
 
-    public void set(String key, ValueHolder value) {
+    public void set(TaggedKey key, ValueHolder value) {
         storeMem.set(key, value);
     }
 
@@ -91,7 +96,7 @@ public class Db implements Lookup, AutoCloseable, KvStore {
 
     @Override
     public void remove(String key) {
-        set(key, ValueHolder.tombstone());
+        set(new TaggedKey(key, snapshotManager.currentSnapshotId()), ValueHolder.tombstone());
     }
 
 

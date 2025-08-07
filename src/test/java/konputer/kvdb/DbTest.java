@@ -110,6 +110,24 @@ class DbTest {
         assertTrue(keys.contains("c"));
     }
 
+    @Test
+    void snapshotIsolation(){
+        byte[] A_VALUE1 =  "1".getBytes();
+        byte[] A_VALUE2 =  "2".getBytes();
+        kvStore.set("a", A_VALUE1);
+
+        try( DbView v1 = kvStore.snapshot() ){
+            assertEquals(v1.get("a").value(), A_VALUE1);
+            kvStore.set("a", A_VALUE2);
+            assertEquals(v1.get("a").value(), A_VALUE1, "Snapshot should not see changes made after it was created");
+            assertEquals(kvStore.get("a").value(), A_VALUE2);
+
+            kvStore.set("b", "3".getBytes());
+            assertFalse(v1.containsKey("b"), "Snapshot should not see keys added after it was created");
+        }
+
+    }
+
 
 
 

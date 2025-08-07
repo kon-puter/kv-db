@@ -22,16 +22,16 @@ public class MemTable{
         this.snapshotManager = manager;
     }
 
-    public void set(String key, ValueHolder value) {
+    public void set(TaggedKey key, ValueHolder value) {
         sizeLock.readLock().lock();
         try{
             sizeBytes.add(value.length() + Integer.BYTES); // +4 for the length of the value
-            ValueHolder old = store.put(snapshotManager.taggedKey(key), value);
+            ValueHolder old = store.put(key, value);
             if (old != null) {
                 sizeBytes.add(-old.length() - Integer.BYTES); // -4 for the length of the value
             } else {
                 // If the key was not present, we need to account for the key length as well
-                sizeBytes.add(key.length() + Integer.BYTES);
+                sizeBytes.add(key.key().length() + Integer.BYTES);
             }
         }finally {
             sizeLock.readLock().unlock();

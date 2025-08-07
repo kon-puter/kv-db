@@ -2,13 +2,10 @@ package konputer.kvdb;
 
 import java.util.Iterator;
 
-public interface KvStore {
+public interface KvStore extends ReadOnlyKvStore {
 
     void set(String key, byte[] value);
 
-    ValueHolder get(String key);
-
-    boolean containsKey(String key);
 
     boolean cas(String key, byte[] newVal, byte[] expected);
 
