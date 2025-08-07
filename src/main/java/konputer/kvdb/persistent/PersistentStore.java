@@ -1,8 +1,14 @@
-package konputer.kvdb;
+package konputer.kvdb.persistent;
 
-import konputer.kvdb.sstable.CompactableLookup;
-import konputer.kvdb.sstable.Row;
-import konputer.kvdb.sstable.SSTableHandle;
+import konputer.kvdb.memory.LayerManager;
+import konputer.kvdb.Lookup;
+import konputer.kvdb.compaction.CompactionStrategy;
+import konputer.kvdb.compaction.LevelingCompaction;
+import konputer.kvdb.dtos.TaggedKey;
+import konputer.kvdb.dtos.ValueHolder;
+import konputer.kvdb.compaction.CompactableLookup;
+import konputer.kvdb.dtos.Row;
+import konputer.kvdb.utils.RowTransformingIterable;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -12,7 +18,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class PersistentStore implements AutoCloseable, Lookup {
 
 
-    final AtomicInteger currentTblId = new AtomicInteger(0);
+    private final AtomicInteger currentTblId = new AtomicInteger(0);
+
 
 
     // uses leveling approach
@@ -28,6 +35,15 @@ public class PersistentStore implements AutoCloseable, Lookup {
         this.layers.add(l0);
     }
 
+    public int getCurrentTblId() {
+        return currentTblId.get();
+    }
+
+    public int nextTblId() {
+        return currentTblId.getAndIncrement();
+    }
+
+
     public void addSSTable(SSTableHandle sstable) {
         if (sstable == null) {
             throw new IllegalArgumentException("SSTableHandle cannot be null");
@@ -36,7 +52,7 @@ public class PersistentStore implements AutoCloseable, Lookup {
         compactionStrategy.ensureCompacted();
     }
 
-    List<CompactableLookup> getCompactables() {
+    public List<CompactableLookup> getCompactables() {
         return layers;
     }
 

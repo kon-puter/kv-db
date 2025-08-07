@@ -1,9 +1,11 @@
-package konputer.kvdb;
+package konputer.kvdb.memory;
 
-import konputer.kvdb.sstable.Compactable;
-import konputer.kvdb.sstable.CompactableLookup;
-import konputer.kvdb.sstable.Row;
-import konputer.kvdb.sstable.SSTableHandle;
+import konputer.kvdb.Lookup;
+import konputer.kvdb.dtos.TaggedKey;
+import konputer.kvdb.dtos.ValueHolder;
+import konputer.kvdb.compaction.Compactable;
+import konputer.kvdb.compaction.CompactableLookup;
+import konputer.kvdb.persistent.SSTableHandle;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;

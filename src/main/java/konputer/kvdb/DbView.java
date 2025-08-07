@@ -1,10 +1,12 @@
 package konputer.kvdb;
 
-import konputer.kvdb.sstable.Row;
+import konputer.kvdb.dtos.Row;
+import konputer.kvdb.dtos.TaggedKey;
+import konputer.kvdb.dtos.ValueHolder;
 
 import java.util.Iterator;
 
-public class DbView  implements ReadOnlyKvStore, AutoCloseable{
+public class DbView implements ReadOnlyKvStore, AutoCloseable {
     private final long snapshotId;
     private Db db;
 
@@ -16,7 +18,7 @@ public class DbView  implements ReadOnlyKvStore, AutoCloseable{
     @Override
     public ValueHolder get(String key) {
         Iterator<Row> it = db.getRange(new TaggedKey(key, 0), new TaggedKey(key, snapshotId));
-        if(it.hasNext()){
+        if (it.hasNext()) {
             return it.next().value();
         }
         return null;
@@ -26,7 +28,6 @@ public class DbView  implements ReadOnlyKvStore, AutoCloseable{
     public boolean containsKey(String key) {
         return get(key) != null;
     }
-
 
 
     @Override

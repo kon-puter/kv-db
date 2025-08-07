@@ -1,4 +1,4 @@
-package konputer.kvdb;
+package konputer.kvdb.dtos;
 
 import java.io.DataOutputStream;
 import java.io.IOException;

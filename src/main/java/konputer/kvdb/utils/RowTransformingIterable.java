@@ -1,9 +1,8 @@
-package konputer.kvdb;
+package konputer.kvdb.utils;
 
 import com.google.common.collect.Iterators;
-import konputer.kvdb.sstable.Row;
-import konputer.kvdb.sstable.SSTableHandle;
-import konputer.kvdb.sstable.SSTableMerger;
+import konputer.kvdb.dtos.Row;
+import konputer.kvdb.persistent.SSTableHandle;
 import org.jooq.lambda.Seq;
 import org.jspecify.annotations.NonNull;
 
@@ -15,6 +14,7 @@ import java.util.List;
 public class RowTransformingIterable implements Iterable<Row> {
 
     private final List<Iterator<ByteBuffer>> source;
+
     public RowTransformingIterable(List<Iterator<ByteBuffer>> source) {
         this.source = source;
     }

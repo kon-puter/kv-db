@@ -1,7 +1,7 @@
-package konputer.kvdb.sstable;
+package konputer.kvdb.compaction;
 
 import konputer.kvdb.Lookup;
-import konputer.kvdb.TaggedKey;
+import konputer.kvdb.dtos.TaggedKey;
 
 import java.nio.ByteBuffer;
 import java.util.Iterator;

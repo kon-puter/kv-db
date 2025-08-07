@@ -1,7 +1,9 @@
-package konputer.kvdb;
+package konputer.kvdb.memory;
 
-import konputer.kvdb.sstable.Row;
-import konputer.kvdb.sstable.SSTableHandle;
+import konputer.kvdb.persistent.PersistentStore;
+import konputer.kvdb.dtos.Row;
+import konputer.kvdb.dtos.TaggedKey;
+import konputer.kvdb.persistent.SSTableHandle;
 import org.jooq.lambda.Seq;
 
 import java.io.File;
@@ -13,7 +15,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static com.google.common.base.Preconditions.*;
+import static com.google.common.base.Preconditions.checkState;
 
 public class MemTablePersistor implements AutoCloseable {
     ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -30,7 +32,7 @@ public class MemTablePersistor implements AutoCloseable {
             throw new IllegalArgumentException("MemTable cannot be null");
         }
         nonCompleted.add(memTable);
-        final int tblId = persistentStore.currentTblId.addAndGet(1);
+        final int tblId = persistentStore.nextTblId();
         executor.submit(() -> {
             //is exactly the same as memTable in function parameter due to single thread executor
             MemTable toHandle = nonCompleted.peek();
@@ -48,7 +50,6 @@ public class MemTablePersistor implements AutoCloseable {
             }
         });
     }
-
 
 
     public List<Iterator<Row>> getRawRange(TaggedKey from, TaggedKey to) {

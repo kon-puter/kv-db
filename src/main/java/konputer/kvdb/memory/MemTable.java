@@ -1,17 +1,19 @@
-package konputer.kvdb;
+package konputer.kvdb.memory;
 
-import konputer.kvdb.sstable.Row;
-import konputer.kvdb.sstable.SSTableContentBuilder;
+import konputer.kvdb.SnapshotManager;
+import konputer.kvdb.dtos.Row;
+import konputer.kvdb.dtos.TaggedKey;
+import konputer.kvdb.dtos.ValueHolder;
+import konputer.kvdb.persistent.SSTableContentBuilder;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-public class MemTable{
+public class MemTable {
     private final ConcurrentSkipListMap<TaggedKey, ValueHolder> store = new ConcurrentSkipListMap<>();
     private final LongAdder sizeBytes = new LongAdder();
     private final ReadWriteLock sizeLock = new ReentrantReadWriteLock();
@@ -24,7 +26,7 @@ public class MemTable{
 
     public void set(TaggedKey key, ValueHolder value) {
         sizeLock.readLock().lock();
-        try{
+        try {
             sizeBytes.add(value.length() + Integer.BYTES); // +4 for the length of the value
             ValueHolder old = store.put(key, value);
             if (old != null) {
@@ -33,7 +35,7 @@ public class MemTable{
                 // If the key was not present, we need to account for the key length as well
                 sizeBytes.add(key.key().length() + Integer.BYTES);
             }
-        }finally {
+        } finally {
             sizeLock.readLock().unlock();
         }
     }
@@ -42,18 +44,18 @@ public class MemTable{
 
         var value = store.floorEntry(new TaggedKey(key, Long.MAX_VALUE));
 
-        if(value == null) {
+        if (value == null) {
             return null;
         }
 
-        if(value.getKey().key().equals(key)){
+        if (value.getKey().key().equals(key)) {
             return value.getValue();
         }
 
         return null;
     }
 
-    public Iterator<Row> getRawRange(TaggedKey from, TaggedKey to){
+    public Iterator<Row> getRawRange(TaggedKey from, TaggedKey to) {
         return store.subMap(from, true, to, true).entrySet()
                 .stream()
                 .map(e -> new Row(e.getKey(), e.getValue()))
@@ -64,7 +66,7 @@ public class MemTable{
         sizeLock.writeLock().lock();
         try {
             return sizeBytes.sum();
-        }finally {
+        } finally {
             sizeLock.writeLock().unlock();
         }
     }

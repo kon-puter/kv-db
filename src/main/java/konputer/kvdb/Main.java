@@ -1,5 +1,7 @@
 package konputer.kvdb;
 
+import konputer.kvdb.dtos.ValueHolder;
+
 public class Main {
 
     public static void main(String[] args) throws Exception {

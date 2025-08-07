@@ -1,4 +1,4 @@
-package konputer.kvdb.sstable;
+package konputer.kvdb.persistent;
 
 import java.io.DataOutputStream;
 import java.io.IOException;

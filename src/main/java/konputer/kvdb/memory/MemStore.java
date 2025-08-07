@@ -1,10 +1,11 @@
-package konputer.kvdb;
+package konputer.kvdb.memory;
 
-import konputer.kvdb.sstable.Row;
+import konputer.kvdb.SnapshotManager;
+import konputer.kvdb.dtos.Row;
+import konputer.kvdb.dtos.TaggedKey;
+import konputer.kvdb.dtos.ValueHolder;
 import org.jspecify.annotations.NonNull;
 
-import java.io.Closeable;
-import java.io.IOException;
 import java.util.Iterator;
 
 public class MemStore implements AutoCloseable {
@@ -13,6 +14,7 @@ public class MemStore implements AutoCloseable {
     private MemTable activeMemTable;
     private final MemTablePersistor persistor;
     private final SnapshotManager snapshotManager;
+
     public MemStore(MemTablePersistor persistor, SnapshotManager snapshotManager) {
         this.activeMemTable = new MemTable(snapshotManager);
         this.snapshotManager = snapshotManager;

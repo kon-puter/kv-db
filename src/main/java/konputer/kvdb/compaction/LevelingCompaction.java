@@ -1,7 +1,10 @@
-package konputer.kvdb;
+package konputer.kvdb.compaction;
 
 import com.google.common.math.LongMath;
-import konputer.kvdb.sstable.*;
+import konputer.kvdb.memory.LayerManager;
+import konputer.kvdb.memory.MemStore;
+import konputer.kvdb.persistent.PersistentStore;
+import konputer.kvdb.persistent.*;
 import org.jooq.lambda.Seq;
 
 import java.io.File;
@@ -56,7 +59,7 @@ public class LevelingCompaction implements CompactionStrategy {
     private void doCompaction(int compactTo, List<CompactableLookup> comp, List<Long> prefixSumCompSizes) {
         checkState(compactTo < comp.size(), "Compact to index is out of bounds");
 
-        int tblId = store.currentTblId.addAndGet(1);
+        int tblId = store.nextTblId();
         try (
                 SSTableContentBuilder builder = new SSTableContentBuilder(new File("tbl_" + tblId + ".sstable"),
                         new SSTableHeader(tblId, prefixSumCompSizes.get(prefixSumCompSizes.size() - 1)))

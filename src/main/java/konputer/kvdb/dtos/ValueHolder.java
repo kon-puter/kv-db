@@ -1,4 +1,4 @@
-package konputer.kvdb;
+package konputer.kvdb.dtos;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -8,6 +8,7 @@ public record ValueHolder(
         byte[] value, boolean deleted
 ) {
     private static final ValueHolder DELETED = new ValueHolder(null, true);
+
     public ValueHolder(byte[] value) {
         this(value, false);
     }
@@ -27,10 +28,10 @@ public record ValueHolder(
         }
     }
 
-   //deserialize from ByteBuffer class not DataInputStream
-    public static ValueHolder deserialize(ByteBuffer buf){
+    //deserialize from ByteBuffer class not DataInputStream
+    public static ValueHolder deserialize(ByteBuffer buf) {
         int valueLength = buf.getInt();
-        if(valueLength < 0) {
+        if (valueLength < 0) {
             return tombstone();
         }
         byte[] value = new byte[valueLength];
@@ -50,6 +51,6 @@ public record ValueHolder(
     @Override
     public boolean equals(Object o) {
         return o instanceof ValueHolder &&
-                java.util.Arrays.equals(value, ((ValueHolder)o).value);
+                java.util.Arrays.equals(value, ((ValueHolder) o).value);
     }
 }

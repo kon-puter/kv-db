@@ -3,7 +3,12 @@ package konputer.kvdb;
 
 import com.google.common.collect.Iterators;
 import com.google.common.util.concurrent.Striped;
-import konputer.kvdb.sstable.Row;
+import konputer.kvdb.dtos.Row;
+import konputer.kvdb.dtos.TaggedKey;
+import konputer.kvdb.dtos.ValueHolder;
+import konputer.kvdb.memory.MemStore;
+import konputer.kvdb.memory.MemTablePersistor;
+import konputer.kvdb.persistent.PersistentStore;
 import org.jspecify.annotations.NonNull;
 
 import java.util.Arrays;

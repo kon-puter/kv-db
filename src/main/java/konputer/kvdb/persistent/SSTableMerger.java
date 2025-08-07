@@ -1,18 +1,18 @@
-package konputer.kvdb.sstable;
+package konputer.kvdb.persistent;
 
-import com.google.common.collect.Iterators;
-import konputer.kvdb.RowTransformingIterable;
+import konputer.kvdb.utils.RowTransformingIterable;
+import konputer.kvdb.compaction.Compactable;
+import konputer.kvdb.dtos.Row;
 import org.jooq.lambda.Seq;
 
 import java.io.IOException;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 
 public class SSTableMerger {
 
     public static SSTableHandle merge(List<? extends Compactable> compactables, SSTableContentBuilder builder) throws IOException {
-        Iterable<Row> iterable  = new RowTransformingIterable(
+        Iterable<Row> iterable = new RowTransformingIterable(
                 Seq.seq(compactables)
                         .flatMap(c -> c.getBlocks().stream())
                         .toList()
@@ -22,8 +22,8 @@ public class SSTableMerger {
 
 
         Row lastRow = null;
-        for(Row cur : iterable){
-            if(lastRow != null && lastRow.key().equals(cur.key())) {
+        for (Row cur : iterable) {
+            if (lastRow != null && lastRow.key().equals(cur.key())) {
                 continue;
             }
             builder.writeKv(cur.key(), cur.value());

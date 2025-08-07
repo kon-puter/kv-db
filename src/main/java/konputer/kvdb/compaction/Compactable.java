@@ -1,4 +1,4 @@
-package konputer.kvdb.sstable;
+package konputer.kvdb.compaction;
 
 import java.nio.ByteBuffer;
 import java.util.Iterator;

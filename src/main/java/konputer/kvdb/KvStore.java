@@ -1,7 +1,5 @@
 package konputer.kvdb;
 
-import java.util.Iterator;
-
 public interface KvStore extends ReadOnlyKvStore {
 
     void set(String key, byte[] value);

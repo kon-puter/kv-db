@@ -1,9 +1,9 @@
-package konputer.kvdb.sstable;
+package konputer.kvdb.persistent;
 
 import com.google.common.hash.BloomFilter;
 import com.google.common.hash.Funnels;
-import konputer.kvdb.TaggedKey;
-import konputer.kvdb.ValueHolder;
+import konputer.kvdb.dtos.TaggedKey;
+import konputer.kvdb.dtos.ValueHolder;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;

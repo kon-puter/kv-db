@@ -1,12 +1,9 @@
-package konputer.kvdb.sstable;
-
-import konputer.kvdb.TaggedKey;
-import konputer.kvdb.ValueHolder;
+package konputer.kvdb.dtos;
 
 public record Row(
         TaggedKey key,
         ValueHolder value
-) implements Comparable<Row>{
+) implements Comparable<Row> {
 
     @Override
     public int compareTo(Row o) {
